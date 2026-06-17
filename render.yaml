@@ -18,7 +18,7 @@ services:
   - type: web
     name: ndt-web
     runtime: static
-    buildCommand: cd web && npm ci && npm run build
+    buildCommand: cd web && npm install && npm run build
     staticPublishPath: web/dist
     pullRequestPreviewsEnabled: false
     envVars:
