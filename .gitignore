@@ -20,4 +20,3 @@ data/audio/
 .DS_Store
 .idea/
 .vscode/
-web/package-lock.json
