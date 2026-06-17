@@ -1,0 +1,23 @@
+# Core runtime — everything the demo needs with just ANTHROPIC_API_KEY set.
+anthropic>=0.49
+pydantic>=2.7
+pydantic-settings>=2.3
+SQLAlchemy>=2.0
+python-dotenv>=1.0
+openai>=1.0.0
+
+
+# Agentic RAG (Phase 3) — local vector store, no external service.
+chromadb>=0.5.5
+
+# API surface (Phase 8)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+
+# Dashboard (Phase 7)
+streamlit>=1.38
+plotly>=5.22
+pandas>=2.2
+
+# Voice adapters are OPTIONAL. The system runs in text mode without them.
+# Install with:  pip install -r requirements-voice.txt

@@ -1,0 +1,6 @@
+# Optional voice stack. The app degrades to text mode if these are absent.
+# STT: local Whisper (no API key). TTS: offline OS voices.
+faster-whisper>=1.0
+pyttsx3>=2.90
+# sounddevice is only needed for live mic capture in the CLI demo.
+sounddevice>=0.4

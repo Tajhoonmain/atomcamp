@@ -1,0 +1,11 @@
+.env
+__pycache__
+*.pyc
+.DS_Store
+tmp/
+.venv/
+venv/
+data/app.db
+data/chroma/
+data/audio/
+*.wav
