@@ -1,13 +1,13 @@
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { ParticleField } from "./ParticleField";
 import { Mark, Wordmark } from "./Logo";
 
-const fade = {
+const fade: Variants = {
   hidden: { opacity: 0, y: 24 },
   show: (i = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.08, duration: 0.6, ease: [0.21, 0.6, 0.35, 1] },
+    transition: { delay: i * 0.08, duration: 0.6, ease: "easeOut" },
   }),
 };
 

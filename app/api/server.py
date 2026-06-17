@@ -8,7 +8,10 @@ Run:  python -m scripts.run_api      (or: uvicorn app.api.server:app --reload)
 """
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.negotiation.engine import NegotiationEngine
@@ -17,8 +20,30 @@ from app.twin.persona import PersonaProfile, default_twin
 
 app = FastAPI(title="Negotiation Digital Twin API", version="0.1.0")
 
-# Full-featured engine: RAG-augmented twin + live coach + prediction per turn.
-engine = NegotiationEngine(enable_rag=True, enable_coach=True, enable_prediction=True)
+# The React frontend is served from a different origin (its own Render static
+# site), so the browser needs CORS to call this API. CORS_ORIGINS is a
+# comma-separated allowlist set in Render; "*" is the permissive demo default.
+_origins = os.getenv("CORS_ORIGINS", "*")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"] if _origins.strip() == "*" else [o.strip() for o in _origins.split(",")],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Engine features are env-toggleable so the service boots light on a small Render
+# instance. RAG is off by default (it pulls a local embedding model + corpus);
+# coach + prediction are on. Set ENABLE_RAG=1 once the corpus is seeded.
+def _flag(name: str, default: str = "1") -> bool:
+    return os.getenv(name, default).strip().lower() in ("1", "true", "yes")
+
+
+engine = NegotiationEngine(
+    enable_rag=_flag("ENABLE_RAG", "0"),
+    enable_coach=_flag("ENABLE_COACH", "1"),
+    enable_prediction=_flag("ENABLE_PREDICTION", "1"),
+)
 
 
 # --------------------------------------------------------------------------- #

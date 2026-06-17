@@ -1,6 +1,16 @@
 .env
+web/.env
+web/.env.local
+.env.*
+!.env.example
+!web/.env.example
 __pycache__/
 *.pyc
+
+# frontend build artifacts / deps — never commit these
+web/node_modules/
+web/dist/
+node_modules/
 .venv/
 venv/
 data/app.db

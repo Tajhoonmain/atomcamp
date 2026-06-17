@@ -1,0 +1,56 @@
+# Render Blueprint — full-stack deploy of Negotiation Digital Twin.
+# Render auto-applies this on push. Two services:
+#   1) ndt-web  — the React frontend (static site, the "updated" UI). THIS is what
+#                 fixes "Render shows the Streamlit app": the published site is web/dist.
+#   2) ndt-api  — the FastAPI backend.
+#
+# SECRETS: every `sync: false` var is entered ONCE in the Render dashboard
+# (Environment tab) and injected at runtime. Nothing secret lives in this file,
+# the repo, or the build output.
+#
+# PROVIDER NOTE: the backend currently runs on Anthropic Claude, so it reads
+# ANTHROPIC_API_KEY. To run it on your OpenAI key instead, do the provider swap
+# in app/core/llm.py (see docs/ANTIGRAVITY_BLUEPRINT.md, Phase 2) and rename the
+# secret to OPENAI_API_KEY. Do NOT paste a real key here.
+
+services:
+  # ---------------- Frontend (React static site) ----------------
+  - type: web
+    name: ndt-web
+    runtime: static
+    buildCommand: cd web && npm ci && npm run build
+    staticPublishPath: web/dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      # Public, non-secret. Set to the backend URL below once it exists, e.g.
+      # https://ndt-api.onrender.com . Leave blank to ship Judge Mode only.
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # ---------------- Backend (FastAPI) ----------------
+  - type: web
+    name: ndt-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.api.server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      # The LLM key — SECRET. Enter in the Render dashboard, never here.
+      # (Backend uses Claude today → ANTHROPIC_API_KEY. Switch to OPENAI_API_KEY
+      #  after the provider swap.)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # CORS allowlist — set to the frontend URL, e.g. https://ndt-web.onrender.com
+      - key: CORS_ORIGINS
+        sync: false
+      - key: ENABLE_RAG
+        value: "0"
+      - key: ENABLE_COACH
+        value: "1"
+      - key: ENABLE_PREDICTION
+        value: "1"
