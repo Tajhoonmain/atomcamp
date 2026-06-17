@@ -15,6 +15,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
 
+# Load .env into the process environment with override=True so a freshly edited
+# key in .env WINS over any stale OPENAI_API_KEY already exported in the shell.
+# The OpenAI SDK reads os.environ directly, so without this a stale shell var
+# silently shadows your .env edit.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(ROOT / ".env", override=True)
+except ImportError:
+    pass
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -31,6 +42,13 @@ class Settings(BaseSettings):
     model: str = "claude-opus-4-8"          # primary reasoning model
     fast_model: str = "claude-haiku-4-5"     # cheap/fast path (coach quick-checks)
     effort: str = "high"                     # low | medium | high | xhigh | max
+
+    # --- OpenAI (Realtime voice agent) ---
+    # The SDK reads OPENAI_API_KEY from the env directly; we mirror it here only
+    # to validate presence and never to log it.
+    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    realtime_model: str = "gpt-realtime"     # OpenAI Realtime model
+    realtime_voice: str = "marin"            # marin | alloy | echo | shimmer | ...
 
     # --- Storage ---
     db_url: str = f"sqlite:///{(DATA_DIR / 'app.db').as_posix()}"

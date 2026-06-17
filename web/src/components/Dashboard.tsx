@@ -7,6 +7,7 @@ import {
 import { AnimatedNumber, Gauge, Sparkline, AgentChip } from "./widgets";
 import { KnowledgeGraph } from "./KnowledgeGraph";
 import { ReplayPanel } from "./Replay";
+import { VoiceAgent } from "./VoiceAgent";
 import { Mark } from "./Logo";
 
 const pillStyle: Record<string, React.CSSProperties> = {
@@ -21,6 +22,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   const [typing, setTyping] = useState<string | null>(null);
   const [playing, setPlaying] = useState(true);
   const [tab, setTab] = useState<"command" | "replay">("command");
+  const [showVoice, setShowVoice] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
 
   // playback loop
@@ -76,11 +78,14 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
               </button>
             ))}
           </div>
+          <button onClick={() => setShowVoice(true)} className="btn-primary px-3 py-1.5 text-xs">🎙️ Voice</button>
           <button onClick={() => { setRevealed(0); setTyping(null); setPlaying(true); }}
             className="btn-ghost px-3 py-1.5 text-xs">↻ Restart</button>
           <button onClick={onExit} className="btn-ghost px-3 py-1.5 text-xs">Exit</button>
         </div>
       </header>
+
+      {showVoice && <VoiceAgent onClose={() => setShowVoice(false)} />}
 
       {tab === "replay" ? (
         <div className="p-5"><ReplayPanel /></div>

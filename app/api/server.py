@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from app.negotiation.engine import NegotiationEngine
 from app.twin.generator import generate_persona
 from app.twin.persona import PersonaProfile, default_twin
+from app.voice.realtime import mint_session
 
 app = FastAPI(title="Negotiation Digital Twin API", version="0.1.0")
 
@@ -154,3 +155,40 @@ def what_if(session_id: int, req: WhatIfRequest) -> dict:
 def end_session(session_id: int) -> dict:
     engine.end_session(session_id)
     return {"status": "ended", "session_id": session_id}
+
+
+# --------------------------------------------------------------------------- #
+# Realtime voice agent (OpenAI)                                               #
+# --------------------------------------------------------------------------- #
+class RealtimeSessionRequest(BaseModel):
+    scenario: str = ""
+    persona: PersonaProfile | None = None
+
+
+@app.get("/voice")
+def voice_test_page():
+    """Serve the standalone local voice-test harness (not part of the React app)."""
+    from pathlib import Path
+
+    from fastapi.responses import FileResponse, PlainTextResponse
+
+    html = Path(__file__).resolve().parents[2] / "scripts" / "voice_test.html"
+    if not html.exists():
+        return PlainTextResponse("voice_test.html not found", status_code=404)
+    return FileResponse(str(html), media_type="text/html")
+
+
+@app.post("/realtime/session")
+def realtime_session(req: RealtimeSessionRequest = RealtimeSessionRequest()) -> dict:
+    """Mint an ephemeral OpenAI Realtime token for the browser voice agent.
+
+    The browser uses the returned `value` (ek_ token) to open a WebRTC session
+    directly with OpenAI. The real OPENAI_API_KEY never leaves this server.
+    """
+    persona = req.persona or default_twin()
+    try:
+        return mint_session(persona=persona, scenario=req.scenario)
+    except RuntimeError as e:  # missing key
+        raise HTTPException(400, str(e))
+    except Exception as e:  # OpenAI auth/quota/etc.
+        raise HTTPException(502, f"OpenAI realtime session error: {e}")

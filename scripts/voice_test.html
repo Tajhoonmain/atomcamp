@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Voice Agent — local test</title>
+<style>
+  body { background:#0A0E1A; color:#e6e8f0; font-family:system-ui,sans-serif; max-width:720px; margin:40px auto; padding:0 20px; }
+  h1 { font-weight:600; }
+  button { background:#4F46E5; color:#fff; border:0; border-radius:10px; padding:12px 20px; font-size:15px; cursor:pointer; }
+  button.stop { background:#7f1d1d; }
+  button:disabled { opacity:.5; cursor:default; }
+  .pill { display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; background:#171D33; }
+  .dot { color:#2DD4BF; }
+  #log { margin-top:20px; background:#12172A; border:1px solid #222842; border-radius:12px; padding:14px; height:340px; overflow:auto; font-size:14px; line-height:1.5; }
+  .you { color:#A5B4FC; } .twin { color:#2DD4BF; } .sys { color:#8A90A6; font-size:12px; }
+</style>
+</head>
+<body>
+  <h1>Negotiation Digital Twin — voice agent (local)</h1>
+  <p class="sys">Talks to the OpenAI Realtime API via an ephemeral token minted by your backend. Your real key never reaches this page.</p>
+  <p>Status: <span id="status" class="pill">idle</span></p>
+  <button id="go">🎙️ Start talking</button>
+  <button id="stop" class="stop" disabled>End</button>
+  <div id="log"></div>
+  <audio id="remote" autoplay></audio>
+
+<script>
+const API = location.origin;            // backend serves this page, so same origin
+const $ = (id) => document.getElementById(id);
+const setStatus = (s) => $("status").textContent = s;
+function logLine(cls, text) {
+  const d = document.createElement("div");
+  d.className = cls; d.textContent = text; $("log").appendChild(d);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+
+let pc, micStream, dc;
+
+async function start() {
+  $("go").disabled = true;
+  try {
+    setStatus("minting token…");
+    const r = await fetch(`${API}/realtime/session`, {
+      method: "POST", headers: {"Content-Type":"application/json"}, body: "{}"
+    });
+    if (!r.ok) throw new Error(`/realtime/session ${r.status}: ${await r.text()}`);
+    const sess = await r.json();
+    const EK = sess.value;                          // ephemeral ek_ token
+    if (!EK) throw new Error("no ephemeral token in response");
+    logLine("sys", "✓ ephemeral session minted (model: " + (sess.session?.model || "?") + ")");
+
+    setStatus("getting mic…");
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    pc = new RTCPeerConnection();
+    pc.ontrack = (e) => { $("remote").srcObject = e.streams[0]; };
+    micStream.getTracks().forEach(t => pc.addTrack(t, micStream));
+
+    dc = pc.createDataChannel("oai-events");
+    dc.onmessage = (e) => {
+      let msg; try { msg = JSON.parse(e.data); } catch { return; }
+      if (msg.type === "response.output_audio_transcript.delta" || msg.type === "response.audio_transcript.delta")
+        appendTwin(msg.delta);
+      else if (msg.type === "conversation.item.input_audio_transcription.completed")
+        logLine("you", "You: " + (msg.transcript || "").trim());
+      else if (msg.type === "error")
+        logLine("sys", "⚠ " + (msg.error?.message || JSON.stringify(msg)));
+    };
+
+    setStatus("connecting to OpenAI…");
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // GA Realtime WebRTC: POST the SDP offer to /v1/realtime/calls with the ek_ token.
+    const resp = await fetch("https://api.openai.com/v1/realtime/calls", {
+      method: "POST",
+      body: offer.sdp,
+      headers: { Authorization: `Bearer ${EK}`, "Content-Type": "application/sdp" }
+    });
+    if (!resp.ok) throw new Error(`OpenAI calls ${resp.status}: ${await resp.text()}`);
+    await pc.setRemoteDescription({ type: "answer", sdp: await resp.text() });
+
+    setStatus("🟢 live — start speaking");
+    $("stop").disabled = false;
+    logLine("sys", "Connected. Say something to open the negotiation.");
+  } catch (err) {
+    setStatus("error");
+    logLine("sys", "✗ " + err.message);
+    $("go").disabled = false;
+  }
+}
+
+let twinLine = null;
+function appendTwin(delta) {
+  if (!delta) return;
+  if (!twinLine) { twinLine = document.createElement("div"); twinLine.className = "twin"; twinLine.textContent = "Twin: "; $("log").appendChild(twinLine); }
+  twinLine.textContent += delta; $("log").scrollTop = $("log").scrollHeight;
+  clearTimeout(appendTwin._t); appendTwin._t = setTimeout(() => { twinLine = null; }, 1200);
+}
+
+function stop() {
+  try { micStream?.getTracks().forEach(t => t.stop()); pc?.close(); } catch {}
+  setStatus("ended"); $("stop").disabled = true; $("go").disabled = false;
+}
+
+$("go").onclick = start;
+$("stop").onclick = stop;
+</script>
+</body>
+</html>

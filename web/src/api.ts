@@ -8,6 +8,7 @@
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
 export const isLive = () => BASE.length > 0;
+export const apiBase = () => BASE;
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
